@@ -1,77 +1,160 @@
+// -----------------------------------------------------------------------------
+// The `water_quality` dashboard widget: the content fits the core vocabulary
+// and budget (validateWidgetContent, empty array = rendered as sent), every
+// bound feature exists on a published device, and the colours follow the
+// results.
+// -----------------------------------------------------------------------------
+
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { validateWidgetContent } from '@gladysassistant/integration-sdk';
-import { createFakeGladys } from '@gladysassistant/integration-sdk/testing';
-import { buildDiscoveredDevices } from '../src/devices/index.js';
-import { simulateLanSession } from '../src/devices/plug.js';
-import { DEMO_STATUS_WIDGET, WIDGETS, refreshWidgets } from '../src/widgets.js';
-import { normalizeConfig } from '../src/config.js';
+import { WIDGET_COLORS, validateWidgetContent } from '@gladysassistant/integration-sdk';
+import { LANGUAGES } from '../src/config.js';
+import { WIDGET_KEY } from '../src/monitor.js';
+import { bathingValue, tapValue } from '../src/widgets.js';
+import { DAY, LAKE, ORLEANS, RIVER, create, createWorld, tick } from './helpers/world.js';
 
-const gladys = createFakeGladys();
-const config = normalizeConfig();
-const demoStatus = WIDGETS[DEMO_STATUS_WIDGET];
-
-// What the SDK passes to onWidgetGet, plus the config index.js adds.
-const getContent = (cfg = config) =>
-  demoStatus.get(gladys, { settings: {}, language: 'en', units: 'metric', config: cfg });
-
-test('the demo_status content is rendered exactly as sent', async () => {
-  // [] = nothing the core would drop, truncate or trim to the content budget.
-  assert.deepEqual(validateWidgetContent(await getContent()), []);
-});
-
-test('the degraded plug connection content is valid too', async () => {
-  simulateLanSession(false);
-  try {
-    const content = await getContent();
-    assert.deepEqual(validateWidgetContent(content), []);
-    const status = content.components.find((component) => component.type === 'status');
-    assert.ok(
-      status.items.some((item) => item.color === 'warning'),
-      'degraded shows a warning',
-    );
-  } finally {
-    simulateLanSession(true);
+async function worldWith(t, codes, config = {}) {
+  const world = await createWorld({ config: { bathing_around: '10', ...config } });
+  t.after(() => world.app.stop());
+  const devices = [];
+  for (const code of codes) {
+    devices.push(await create(world, code));
   }
+  return { world, devices };
+}
+
+async function content(world, settings = {}, language = 'fr') {
+  const ack = await world.fake.widgetGet(WIDGET_KEY, { settings, language, units: 'metric' });
+  assert.equal(ack.success, true);
+  return ack.data.content;
+}
+
+const features = (devices) =>
+  new Set(devices.flatMap((device) => device.features.map((feature) => feature.external_id)));
+
+test('the overview: the tap water, its hardness, the sites, valid in every language', async (t) => {
+  const { world, devices } = await worldWith(t, [ORLEANS, LAKE, RIVER]);
+  for (const language of LANGUAGES) {
+    const widget = await content(world, {}, language);
+    assert.deepEqual(validateWidgetContent(widget), [], language);
+  }
+  const widget = await content(world);
+  const tile = widget.components.find((c) => c.type === 'value');
+  assert.deepEqual(tile, {
+    type: 'value',
+    label: 'Dureté (°f)',
+    device_feature: 'ext:test-integration:tap:45234:hardness',
+  });
+  assert.ok(features(devices).has(tile.device_feature));
+  const items = widget.components.find((c) => c.type === 'status').items;
+  assert.deepEqual(items, [
+    {
+      label: 'Eau du robinet · Orléans',
+      value: 'Conforme · 18,5 °f',
+      color: WIDGET_COLORS.SUCCESS,
+      icon: 'droplet',
+    },
+    { label: "PLAN D'EAU DU LAC", value: 'Bon · 12/08', color: WIDGET_COLORS.SUCCESS, icon: 'sun' },
+    {
+      label: 'PLAGE DE LA LOIRE',
+      value: 'Moyen · 10/08',
+      color: WIDGET_COLORS.WARNING,
+      icon: 'sun',
+    },
+  ]);
+  assert.match(widget.components.at(-1).text, /^Sources : Hub'Eau, ministère de la Santé · /);
 });
 
-test('the live tiles reference features the integration publishes', async () => {
-  const featureIds = new Set(
-    buildDiscoveredDevices(gladys, config).flatMap((device) =>
-      device.features.map((feature) => feature.external_id),
-    ),
+test('a non-compliant tap water or an unsafe site adds a heading in red', async (t) => {
+  const { world } = await worldWith(t, [ORLEANS, LAKE]);
+  world.api.pages[LAKE].bans = [{ from: '2026-08-20', to: null }];
+  await tick(world, DAY);
+  let widget = await content(world, {}, 'en');
+  assert.deepEqual(widget.components[0], {
+    type: 'text',
+    variant: 'heading',
+    text: 'Bathing not advised',
+  });
+  const lake = widget.components.find((c) => c.type === 'status').items[1];
+  assert.deepEqual(
+    [lake.value, lake.color, lake.icon],
+    ['Bathing prohibited', WIDGET_COLORS.DANGER, 'x-circle'],
   );
-  const liveTiles = (await getContent()).components.filter((c) => c.device_feature);
-  assert.ok(liveTiles.length > 0, 'the template demonstrates a device-bound tile');
-  for (const tile of liveTiles) {
-    assert.ok(featureIds.has(tile.device_feature), `unknown feature ${tile.device_feature}`);
-  }
-});
-
-test('every button action of the content is handled and answers a short toast', async () => {
-  const buttons = (await getContent()).components.filter((c) => c.type === 'button' && c.action);
-  assert.ok(buttons.length > 0, 'the template demonstrates a widget action');
-  for (const { action } of buttons) {
-    const message = await demoStatus.action(gladys, {
-      actionKey: action.key,
-      params: action.params ?? {},
-      settings: {},
-      config,
-    });
-    assert.ok(message.en, 'the toast carries at least the mandatory `en` text');
-    assert.ok(message.en.length <= 200, 'toasts are capped at 200 characters');
-  }
-});
-
-test('an unknown widget action fails, so the user sees the error', async () => {
-  await assert.rejects(
-    demoStatus.action(gladys, { actionKey: 'unknown', params: {}, settings: {}, config }),
-    /Unknown widget action/,
+  world.api.addSample({ code: 'N1', at: world.clock.now() - DAY, bact: 'N', params: { ECOLI: 2 } });
+  await tick(world, DAY);
+  widget = await content(world, {}, 'de');
+  assert.equal(widget.components[0].text, 'Leitungswasser nicht konform');
+  assert.equal(
+    widget.components.find((c) => c.type === 'status').items[0].color,
+    WIDGET_COLORS.DANGER,
   );
 });
 
-test('refreshWidgets nudges every widget', () => {
-  const fresh = createFakeGladys();
-  refreshWidgets(fresh);
-  assert.deepEqual(fresh.fake.widgetRefreshes, Object.keys(WIDGETS));
+test('the detail of a commune: four live tiles, the conformities, the conclusion', async (t) => {
+  const { world, devices } = await worldWith(t, [ORLEANS]);
+  const widget = await content(world, { device: devices[0].external_id });
+  assert.deepEqual(validateWidgetContent(widget), []);
+  const tiles = widget.components.filter((c) => c.type === 'value');
+  assert.deepEqual(
+    tiles.map((tile) => tile.device_feature.split(':').pop()),
+    ['nitrates', 'hardness', 'chlorine', 'ph'],
+  );
+  for (const tile of tiles) {
+    assert.ok(features(devices).has(tile.device_feature), tile.device_feature);
+  }
+  assert.deepEqual(widget.components.find((c) => c.type === 'status').items, [
+    { label: 'Bactériologie', value: 'Conforme', color: WIDGET_COLORS.SUCCESS },
+    { label: 'Physico-chimie', value: 'Conforme', color: WIDGET_COLORS.SUCCESS },
+    {
+      label: 'Dernier prélèvement',
+      value: '20/07/2026',
+      color: WIDGET_COLORS.NEUTRAL,
+      icon: 'calendar',
+    },
+  ]);
+  assert.match(
+    widget.components.find((c) => c.variant === 'body').text,
+    /^Eau d'alimentation conforme/,
+  );
+});
+
+test('the detail of a site, with the link to its page', async (t) => {
+  const { world, devices } = await worldWith(t, [LAKE]);
+  for (const language of LANGUAGES) {
+    const widget = await content(world, { device: devices[0].external_id }, language);
+    assert.deepEqual(validateWidgetContent(widget), [], language);
+  }
+  const widget = await content(world, { device: devices[0].external_id });
+  assert.deepEqual(
+    widget.components.find((c) => c.type === 'status').items.map((item) => item.value),
+    ['Bon · 12/08', '12/08/2026', "Ouverte jusqu'au 31/08"],
+  );
+  assert.deepEqual(widget.components.at(-1).link, {
+    url: 'https://baignades.sante.gouv.fr/baignades/consultSite.do?dptddass=045&site=045000101',
+  });
+});
+
+test('empty, and a device no longer followed', async (t) => {
+  const world = await createWorld();
+  t.after(() => world.app.stop());
+  const empty = await content(world, {}, 'es');
+  assert.deepEqual(validateWidgetContent(empty), []);
+  assert.match(empty.components[0].text, /^Aún no hay nada que mostrar/);
+  const gone = await content(world, { device: 'ext:test-integration:bathing:045000101' }, 'en');
+  assert.equal(gone.components[0].text, 'This device is no longer followed.');
+});
+
+test('a status value never exceeds 40 characters', () => {
+  const tap = {
+    read: true,
+    empty: false,
+    overall: 'derogation',
+    parameters: { hardness: { value: 45.25 } },
+  };
+  const site = { read: true, status: 'unknown', lastSample: null };
+  for (const language of LANGUAGES) {
+    assert.ok(tapValue(tap, language).length <= 40, language);
+    assert.ok(bathingValue(site, language).length <= 40, language);
+  }
+  assert.equal(tapValue({ ...tap, read: false }, 'fr'), 'En attente');
 });

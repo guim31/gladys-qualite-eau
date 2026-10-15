@@ -1,169 +1,277 @@
 // -----------------------------------------------------------------------------
-// Dashboard widgets (SDK v0.14+, Gladys 5.1+).
+// Dashboard widget (manifest `widgets`, Gladys 5.1+): `water_quality`.
 //
-// A widget puts the integration's own data on the Gladys dashboard without a
-// dedicated core widget. The manifest `widgets` field declares its identity
-// (key, label, icon, optional per-instance `settings`); at runtime the
-// integration returns a DECLARATIVE content — `text`, `value`, `gauge`,
-// `status`, `chart`, `card-list`, `image`, `button` — that the core renders
-// with its own theme, dark mode and translations. No HTML, no CSS.
+// Without setting: one status line per tap water commune (compliant or not,
+// and its hardness) and per bathing site (last result and its day), coloured
+// (green compliant or good, yellow derogation or average, red non-compliant,
+// poor or prohibited, grey without a current result), the hardness of the
+// first commune as a live tile, and a heading when the tap water is
+// non-compliant or a bathing site unsafe.
 //
-// Each entry of WIDGETS is keyed by the widget `key` and exposes:
-//   - get(gladys, { settings, language, units, config }): the content,
-//     registered by index.js with `gladys.onWidgetGet(key, ...)`;
-//   - action(gladys, { actionKey, params, settings, config }) (optional): a
-//     tapped `button` carrying an `action`, registered with
-//     `gladys.onWidgetAction`.
+// With a device chosen in the settings:
+//   - a commune: its nitrates, hardness, chlorine and pH as live tiles bound to
+//     its features, the two conformities and the day of the sample, and the
+//     sanitary conclusion as written by the health agency;
+//   - a bathing site: its result, last sample and season, and a link to its
+//     page on baignades.sante.gouv.fr.
 //
-// Check your contents in the tests with `validateWidgetContent` (exported by
-// the SDK, see test/widgets.test.js), or run with DEBUG=gladys-integration-sdk
-// to have the SDK log every violation of the vocabulary and the budget.
+// Both end with the sources and the time of the last reading. Budget: 2 texts,
+// 1 status, 4 tiles, 1 button at most.
 // -----------------------------------------------------------------------------
 
+import { WIDGET_COLORS } from '@gladysassistant/integration-sdk';
+import { sitePage } from './baignades.js';
+import { BATHING, NAMES, TAP, idsOf, parseId } from './devices.js';
 import {
-  createLogger,
-  DEVICE_FEATURE_CATEGORIES,
-  DEVICE_TRANSPORTS,
-  WIDGET_COLORS,
-} from '@gladysassistant/integration-sdk';
-import { identifyDevice } from './devices/index.js';
-import { weatherStation } from './devices/weatherStation.js';
-import { plug } from './devices/plug.js';
-import { light } from './devices/light.js';
+  BATHING_NAMES,
+  BATHING_STATUS,
+  CONFORMITY,
+  CONFORMITY_NAMES,
+  formatDay,
+  formatIsoDay,
+  formatNumber,
+} from './messages.js';
+import { WIDGET_KEY } from './monitor.js';
 
-const logger = createLogger({ name: 'widgets' });
+export const MAX_STATUS_ITEMS = 10;
+export const TTL_SECONDS = 1800;
+const MAX_STATUS_TEXT = 40;
+const MAX_BODY = 300;
 
-// Widget key, as declared in the manifest `widgets` field.
-export const DEMO_STATUS_WIDGET = 'demo_status';
-
-// Keys of the `button` actions the demo_status content declares.
-const DEMO_STATUS_ACTIONS = { IDENTIFY_LIGHT: 'identify_light' };
-
-// How the plug transport reads in the status list.
-const TRANSPORT_STATUS = {
-  [DEVICE_TRANSPORTS.LOCAL]: { value: { en: 'Local', fr: 'Locale' }, color: WIDGET_COLORS.SUCCESS },
-  [DEVICE_TRANSPORTS.CLOUD]: { value: { en: 'Cloud', fr: 'Cloud' }, color: WIDGET_COLORS.INFO },
-  [DEVICE_TRANSPORTS.UNREACHABLE]: {
-    value: { en: 'Unreachable', fr: 'Injoignable' },
-    color: WIDGET_COLORS.DANGER,
+export const TEXT = {
+  empty: {
+    en: 'Nothing to show yet: fill in the configuration of the Water quality integration, then create the devices in the Discover tab.',
+    fr: "Rien à afficher pour l'instant : remplissez la configuration de l'intégration Qualité de l'eau, puis créez les appareils dans l'onglet Découverte.",
+    de: 'Noch nichts anzuzeigen: Fülle die Konfiguration der Integration Wasserqualität aus und lege dann die Geräte im Tab „Entdecken“ an.',
+    es: 'Aún no hay nada que mostrar: rellene la configuración de la integración Calidad del agua y, después, cree los dispositivos en la pestaña Descubrir.',
   },
+  gone: {
+    en: 'This device is no longer followed.',
+    fr: "Cet appareil n'est plus suivi.",
+    de: 'Dieses Gerät wird nicht mehr verfolgt.',
+    es: 'Este dispositivo ya no se sigue.',
+  },
+  tapAlert: {
+    en: 'Tap water non-compliant',
+    fr: 'Eau du robinet non conforme',
+    de: 'Leitungswasser nicht konform',
+    es: 'Agua del grifo no conforme',
+  },
+  bathingAlert: {
+    en: 'Bathing not advised',
+    fr: 'Baignade déconseillée',
+    de: 'Baden nicht empfohlen',
+    es: 'Baño desaconsejado',
+  },
+  tap: { en: 'Tap water', fr: 'Eau du robinet', de: 'Leitungswasser', es: 'Agua del grifo' },
+  bacteriological: {
+    en: 'Bacteriology',
+    fr: 'Bactériologie',
+    de: 'Bakteriologie',
+    es: 'Bacteriología',
+  },
+  physicoChemical: {
+    en: 'Physico-chemistry',
+    fr: 'Physico-chimie',
+    de: 'Physik und Chemie',
+    es: 'Fisicoquímica',
+  },
+  sample: {
+    en: 'Last sample',
+    fr: 'Dernier prélèvement',
+    de: 'Letzte Probe',
+    es: 'Última muestra',
+  },
+  quality: {
+    en: 'Water quality',
+    fr: "Qualité de l'eau",
+    de: 'Wasserqualität',
+    es: 'Calidad del agua',
+  },
+  season: { en: 'Season', fr: 'Saison', de: 'Saison', es: 'Temporada' },
+  waiting: { en: 'Waiting', fr: 'En attente', de: 'Wartet', es: 'En espera' },
+  none: { en: 'None', fr: 'Aucun', de: 'Keine', es: 'Ninguna' },
+  source: {
+    en: "Sources: Hub'Eau, Ministry of Health",
+    fr: "Sources : Hub'Eau, ministère de la Santé",
+    de: "Quellen: Hub'Eau, Gesundheitsministerium",
+    es: "Fuentes: Hub'Eau, Ministerio de Sanidad",
+  },
+  site: { en: 'Site page', fr: 'Fiche du site', de: 'Seite der Stelle', es: 'Ficha de la zona' },
 };
 
-// A live tile references a feature by its external_id: read it from the
-// discovery payload itself, so the widget and the device never disagree.
-function featureExternalId(gladys, config, blueprint, category) {
-  const device = blueprint.buildDevice(gladys, config);
-  return device.features.find((feature) => feature.category === category).external_id;
+const t = (text, language) => text[language] ?? text.en;
+const clip = (text, max = MAX_STATUS_TEXT) =>
+  text.length <= max ? text : `${text.slice(0, max - 1)}…`;
+
+const conformityColor = (key) =>
+  Object.values(CONFORMITY).find((level) => level.key === key)?.widget ?? WIDGET_COLORS.NEUTRAL;
+
+/** The status value of a commune, e.g. "Conforme · 25 °f". */
+export function tapValue(view, language) {
+  if (!view.read) {
+    return t(TEXT.waiting, language);
+  }
+  if (view.empty) {
+    return clip(t(TEXT.none, language));
+  }
+  const hardness = view.parameters.hardness;
+  const words = CONFORMITY_NAMES[language][view.overall];
+  return clip(hardness ? `${words} · ${formatNumber(hardness.value, language, 1)} °f` : words);
 }
 
-function plugConnectionStatus(gladys, config) {
-  const { transport, degraded } = plug.transport(gladys, config);
-  const { value, color } = TRANSPORT_STATUS[transport];
-  if (degraded) {
-    return {
-      value: { en: `${value.en} (degraded mode)`, fr: `${value.fr} (mode dégradé)` },
-      color: WIDGET_COLORS.WARNING,
-    };
+/** The status value of a bathing site, e.g. "Bon · 12/08". */
+export function bathingValue(view, language) {
+  if (!view.read) {
+    return t(TEXT.waiting, language);
   }
-  return { value, color };
+  const words = BATHING_NAMES[language][view.status];
+  const dated = ['good', 'average', 'poor'].includes(view.status) && view.lastSample;
+  return clip(dated ? `${words} · ${formatIsoDay(view.lastSample.date, language)}` : words);
+}
+
+function caption(monitor, communes, sites, language) {
+  const updated = monitor.updatedAt(communes, sites);
+  const source = t(TEXT.source, language);
+  return {
+    type: 'text',
+    variant: 'caption',
+    text: updated === null ? source : `${source} · ${formatDay(updated, language)}`,
+  };
+}
+
+function overview(monitor, communes, sites, language) {
+  const taps = communes.map((code) => monitor.tapView(code));
+  const baths = sites.map((code) => monitor.bathingView(code));
+  const components = [];
+  if (taps.some((view) => view.overall === 'non_compliant')) {
+    components.push({ type: 'text', variant: 'heading', text: t(TEXT.tapAlert, language) });
+  } else if (baths.some((view) => ['poor', 'prohibited'].includes(view.status))) {
+    components.push({ type: 'text', variant: 'heading', text: t(TEXT.bathingAlert, language) });
+  }
+  const first = taps.find((view) => view.parameters.hardness);
+  if (first) {
+    components.push({
+      type: 'value',
+      label: NAMES[language].hardness,
+      device_feature: idsOf(monitor.gladys, TAP, first.code).hardness,
+    });
+  }
+  const items = [
+    ...taps.map((view) => ({
+      label: clip(`${t(TEXT.tap, language)} · ${view.name}`),
+      value: tapValue(view, language),
+      color: view.read && !view.empty ? conformityColor(view.overall) : WIDGET_COLORS.NEUTRAL,
+      icon: 'droplet',
+    })),
+    ...baths.map((view) => ({
+      label: clip(view.name),
+      value: bathingValue(view, language),
+      color: BATHING_STATUS[view.status].widget,
+      icon: view.status === 'prohibited' ? 'x-circle' : 'sun',
+    })),
+  ].slice(0, MAX_STATUS_ITEMS);
+  components.push({ type: 'status', items });
+  components.push(caption(monitor, communes, sites, language));
+  return components;
+}
+
+function tapDetail(monitor, code, language) {
+  const view = monitor.tapView(code);
+  const ids = idsOf(monitor.gladys, TAP, code);
+  const components = ['nitrates', 'hardness', 'chlorine', 'ph'].map((key) => ({
+    type: 'value',
+    label: NAMES[language][key],
+    device_feature: ids[key],
+  }));
+  const conformity = (key) => ({
+    value: CONFORMITY_NAMES[language][view[key]],
+    color: conformityColor(view[key]),
+  });
+  components.push({
+    type: 'status',
+    items: [
+      { label: t(TEXT.bacteriological, language), ...conformity('bacteriological') },
+      { label: t(TEXT.physicoChemical, language), ...conformity('physicoChemical') },
+      {
+        label: t(TEXT.sample, language),
+        value:
+          view.sampleAt === null ? t(TEXT.waiting, language) : formatDay(view.sampleAt, language),
+        color: WIDGET_COLORS.NEUTRAL,
+        icon: 'calendar',
+      },
+    ],
+  });
+  if (view.conclusion) {
+    components.push({ type: 'text', variant: 'body', text: clip(view.conclusion, MAX_BODY) });
+  }
+  components.push(caption(monitor, [code], [], language));
+  return components;
+}
+
+function bathingDetail(monitor, code, language) {
+  const view = monitor.bathingView(code);
+  return [
+    {
+      type: 'status',
+      items: [
+        {
+          label: t(TEXT.quality, language),
+          value: bathingValue(view, language),
+          color: BATHING_STATUS[view.status].widget,
+        },
+        {
+          label: t(TEXT.sample, language),
+          value: view.lastSample
+            ? formatIsoDay(view.lastSample.date, language, { year: true })
+            : t(TEXT.none, language),
+          color: WIDGET_COLORS.NEUTRAL,
+          icon: 'calendar',
+        },
+        {
+          label: t(TEXT.season, language),
+          value: clip(view.season ?? t(TEXT.waiting, language)),
+          color: WIDGET_COLORS.NEUTRAL,
+          icon: 'sun',
+        },
+      ],
+    },
+    caption(monitor, [], [code], language),
+    {
+      type: 'button',
+      label: t(TEXT.site, language),
+      icon: 'external-link',
+      link: { url: sitePage(code) },
+    },
+  ];
 }
 
 export const WIDGETS = {
-  [DEMO_STATUS_WIDGET]: {
-    // `settings` holds the per-instance values of the declared `settings`
-    // (none here); `language` and `units` are those of the user viewing the
-    // dashboard, for the values you format yourself. Multi-language objects
-    // (`{ en, fr }`) are picked by the core, like everywhere else.
-    async get(gladys, { config }) {
-      logger.debug(`onWidgetGet <- ${DEMO_STATUS_WIDGET}`);
-      return {
-        // Reload policy: the computed parts below only change with the
-        // config, and index.js nudges the widget on every (re)connection and
-        // config update (see refreshWidgets) — the TTL is just a safety net.
-        ttl_seconds: 300,
-        components: [
-          // Device-bound tiles: LIVE, they follow the published states over
-          // the core's real-time path. No TTL, no nudge involved.
-          {
-            type: 'value',
-            label: { en: 'Temperature', fr: 'Température' },
-            icon: 'thermometer',
-            device_feature: featureExternalId(
-              gladys,
-              config,
-              weatherStation,
-              DEVICE_FEATURE_CATEGORIES.TEMPERATURE_SENSOR,
-            ),
-          },
-          {
-            type: 'value',
-            label: { en: 'Office plug', fr: 'Prise du bureau' },
-            icon: 'zap',
-            device_feature: featureExternalId(
-              gladys,
-              config,
-              plug,
-              DEVICE_FEATURE_CATEGORIES.ENERGY_SENSOR,
-            ),
-          },
-          // Computed rows: what the integration knows that no device feature
-          // carries. Served from the core cache until the TTL or a nudge.
-          {
-            type: 'status',
-            items: [
-              {
-                label: { en: 'Plug connection', fr: 'Connexion de la prise' },
-                icon: 'wifi',
-                ...plugConnectionStatus(gladys, config),
-              },
-              {
-                label: { en: 'Observed location', fr: 'Position observée' },
-                icon: 'map-pin',
-                value: `${config.latitude.toFixed(2)}, ${config.longitude.toFixed(2)}`,
-                color: WIDGET_COLORS.NEUTRAL,
-              },
-            ],
-          },
-          // `params` are declared HERE and sent back as-is: the handler never
-          // receives user input (a dashboard can hang on a public wall).
-          {
-            type: 'button',
-            label: { en: 'Identify the light', fr: 'Identifier la lampe' },
-            icon: 'eye',
-            style: 'secondary',
-            action: {
-              key: DEMO_STATUS_ACTIONS.IDENTIFY_LIGHT,
-              params: { device: light.deviceExternalId(gladys) },
-            },
-          },
-        ],
-      };
-    },
-
-    // Resolve an optional toast (string or multi-language object, ≤ 200
-    // characters). After a successful action the core drops the cached
-    // content and every open dashboard refetches it: no nudge needed.
-    async action(gladys, { actionKey, params, config }) {
-      logger.info(`onWidgetAction <- ${DEMO_STATUS_WIDGET}.${actionKey}`);
-      if (actionKey === DEMO_STATUS_ACTIONS.IDENTIFY_LIGHT) {
-        return identifyDevice(gladys, params.device, config);
+  [WIDGET_KEY]: {
+    async get(monitor, { settings, language = 'en' }) {
+      const lang = CONFORMITY_NAMES[language] ? language : 'en';
+      const communes = monitor.created(TAP);
+      const sites = monitor.created(BATHING);
+      const chosen = typeof settings?.device === 'string' ? settings.device : null;
+      if (chosen) {
+        const parsed = parseId(monitor.gladys, chosen);
+        let components;
+        if (parsed?.kind === TAP && communes.includes(parsed.code)) {
+          components = tapDetail(monitor, parsed.code, lang);
+        } else if (parsed?.kind === BATHING && sites.includes(parsed.code)) {
+          components = bathingDetail(monitor, parsed.code, lang);
+        } else {
+          components = [{ type: 'text', variant: 'body', text: t(TEXT.gone, lang) }];
+        }
+        return { ttl_seconds: TTL_SECONDS, components };
       }
-      // Throwing acks the action as failed: the message reaches the user.
-      throw new Error(`Unknown widget action: ${actionKey}`);
+      if (communes.length === 0 && sites.length === 0) {
+        return {
+          ttl_seconds: TTL_SECONDS,
+          components: [{ type: 'text', variant: 'body', text: t(TEXT.empty, lang) }],
+        };
+      }
+      return { ttl_seconds: TTL_SECONDS, components: overview(monitor, communes, sites, lang) };
     },
   },
 };
-
-/**
- * Freshness nudge: ask the core to re-pull every widget NOW instead of
- * waiting for the content TTL. Call it when you KNOW a computed content
- * changed (here: the config, which drives the plug transport and the observed
- * location) — and after every (re)connection, since the nudges are
- * fire-and-forget: rate-limited core-side to 1 per 10 s per widget, dropped
- * silently while disconnected.
- */
-export function refreshWidgets(gladys) {
-  for (const key of Object.keys(WIDGETS)) {
-    gladys.requestWidgetRefresh(key);
-  }
-}
