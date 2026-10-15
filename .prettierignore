@@ -2,3 +2,6 @@ node_modules/
 package-lock.json
 /data/
 *.log
+# Recorded and hand-made answers of the services, kept as served.
+test/fixtures/hubeau/
+test/fixtures/baignades/

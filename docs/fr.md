@@ -1,67 +1,183 @@
-# Template de démonstration
+# Qualité de l'eau
 
-Ceci est la documentation utilisateur de l'intégration. Gladys ré-héberge ce
-fichier et affiche un lien **Documentation** permanent vers lui dans l'écran
-de configuration (dans la langue de l'utilisateur, avec l'anglais en repli) —
-c'est au moment de configurer que l'utilisateur en a le plus besoin. Gardez
-les courtes indications d'accueil dans les blocs `section` du `config_schema`
-du manifest ; mettez ici le pas-à-pas détaillé (captures d'écran, dépannage…).
+Cette intégration affiche dans Gladys la **qualité de l'eau du robinet** de votre commune et celle
+des **sites de baignade** proches (plages, lacs, rivières surveillés), à partir des résultats du
+contrôle sanitaire publiés par le ministère de la Santé. Données publiques, sans compte ni clé.
 
-## Ce que vous obtenez
+> **Une information, pas un système d'alerte sanitaire.** Les résultats sont publiés avec
+> plusieurs jours, parfois plusieurs semaines de retard. En cas de problème sur l'eau du robinet
+> ou de baignade interdite, ce sont les avis de votre mairie, de votre distributeur d'eau et de
+> l'ARS (agence régionale de santé) qui font foi. Intégration non affiliée à l'OFB / eaufrance ni
+> au ministère de la Santé.
 
-Six appareils de démonstration apparaissent après l'installation : une
-station météo (vraies données Open-Meteo), un interrupteur, une lampe
-variable, une prise connectée avec mesure de puissance, un détecteur de
-mouvement et une caméra.
+> **Développée sans accès aux services en direct** (le réseau de la session de développement ne
+> les atteignait pas) : elle a été écrite et testée sur des réponses enregistrées et des pages
+> reconstruites. Vos retours sont les bienvenus, en particulier sur la baignade.
 
-## Configuration
+## Présentation
 
-1. Ouvrez l'onglet **Configuration** de l'intégration.
-2. Renseignez la **latitude** et la **longitude** que la station météo de
-   démonstration doit observer (Paris par défaut), et choisissez votre unité
-   de température. L'**intervalle de rafraîchissement** règle la fréquence
-   de lecture de la station météo et de la puissance de la prise : toutes
-   les 5 minutes par défaut, toutes les minutes au plus.
-3. Enregistrez : les appareils apparaissent dans l'onglet **Découverte**,
-   prêts à être ajoutés.
+- **Un appareil « Eau du robinet · votre commune »** : la conformité du dernier prélèvement
+  (bactériologique et physico-chimique), sa date, la conclusion sanitaire rédigée par l'ARS, et
+  quand elles sont mesurées les teneurs en **nitrates**, la **dureté** (titre hydrotimétrique,
+  utile pour régler un adoucisseur ou un lave-vaisselle), le **chlore** et le **pH**.
+- **Un appareil par site de baignade** : le résultat du dernier prélèvement (bon, moyen,
+  mauvais) ou l'interdiction de baignade, sa date, et la saison (ouverte jusqu'au…, fermée).
+- **Deux déclencheurs de scène** : « Eau du robinet non conforme » et « Baignade déconseillée ou
+  interdite ».
+- **Un widget** pour le tableau de bord, et une action **« Chercher des sites de baignade »**.
+- Une lecture **par jour** : le ministère publie les résultats de l'eau du robinet environ une
+  fois par mois, ceux de la baignade environ une fois par semaine en saison.
 
-Le réglage **Préférer la connexion locale** pilote la prise de
-démonstration : elle affiche en badge le canal réellement utilisé (local ou
-cloud), avec un point orange quand elle fonctionne en mode dégradé (local
-refusé, bascule cloud).
+## Prérequis
 
-## Actions
+- Gladys Assistant **5.2.0** ou plus récent.
+- Un accès à Internet depuis Gladys vers `hubeau.eaufrance.fr`, `baignades.sante.gouv.fr` et
+  `geo.api.gouv.fr`.
+- Pour utiliser votre maison : sa **position** renseignée dans Gladys (Paramètres → Maisons).
+  L'intégration demande l'accès à la position des maisons (`location`), ce qui est affiché à
+  l'installation. Sans position, tapez simplement le code INSEE de votre commune.
+- Communes de France métropolitaine et d'outre-mer suivies par le contrôle sanitaire.
 
-- **Tester le fournisseur météo** — effectue une requête en direct vers
-  Open-Meteo et affiche la température et l'humidité actuelles sous le
-  bouton.
-- **Identifier un appareil** — choisissez un de vos appareils dans la liste
-  et il se signale (la lampe de démonstration « clignote » dans les logs).
+## Installation et configuration
 
-## Scènes
+1. Dans Gladys, ouvrez **Intégrations → Installer depuis GitHub** et saisissez
+   `https://github.com/guim31/gladys-qualite-eau` (ou installez-la depuis le catalogue quand elle
+   y figure).
+2. Dans l'onglet **Configuration** :
+   - **Maison** : la maison dont la position donne la commune. Vide : la première maison de
+     Gladys qui a une position.
+   - **Communes (codes INSEE)** : à remplir seulement pour suivre une autre commune que celle de
+     la maison (une résidence secondaire, la commune de vos parents…), jusqu'à 5. Attention, le
+     **code INSEE n'est pas le code postal** : Orléans a le code postal 45000 mais le code INSEE 45234. Vous le trouvez sur la fiche de la commune sur le site de l'INSEE ou sur Wikipédia.
+   - **Sites de baignade suivis** : ceux de vos communes (par défaut), ceux à 5, 10 ou 20 km de
+     votre maison, ou seulement ceux que vous tapez.
+   - **Sites de baignade** : des codes donnés par « Chercher des sites de baignade », ou les
+     adresses de leurs pages sur baignades.sante.gouv.fr.
+   - **Langue des noms et des textes** : le français par défaut.
+3. Enregistrez, puis ouvrez l'onglet **Découverte** et cliquez sur **Ajouter à Gladys** pour les
+   appareils voulus.
 
-L'intégration ajoute ses propres cartes à l'éditeur de scènes (Gladys 5.1
-ou plus récent), dans la catégorie **Intégrations** :
+### Chercher des sites de baignade
 
-- **Mouvement détecté** (déclencheur) — lance la scène quand un détecteur
-  de démonstration voit bouger quelque chose. Choisissez éventuellement le
-  détecteur et ce qui a bougé (personne, animal) ; laissés vides, toute
-  détection correspond. Les actions suivantes peuvent lire ce qui a bougé
-  avec `{{triggerEvent.data.target}}`.
-- **Identifier un appareil** (action) — fait se signaler l'appareil choisi.
-  Elle indique si l'appareil a pu se signaler, pour que les actions
-  suivantes puissent en dépendre.
+L'action **« Chercher des sites de baignade »**, dans l'onglet Configuration, liste les sites
+d'une commune (tapez son code INSEE) ou, champ vide, ceux des communes autour de votre maison
+(5, 10 ou 20 km), avec leur code. Copiez les codes voulus dans **Sites de baignade**, puis
+enregistrez.
 
-## Tableau de bord
+## Les appareils
 
-Ajoutez le widget **État de la démo** à un tableau de bord : il affiche en
-direct la température de la station météo et la puissance de la prise du
-bureau, la connexion utilisée par la prise (en orange si dégradée) et la
-position observée. Son bouton **Identifier la lampe** fait se signaler la
-lampe de démonstration.
+### Eau du robinet
+
+| Fonctionnalité              | Ce qu'elle montre                                                                                                               |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Conformité bactériologique  | Pastille de risque : vert (conforme), jaune (conforme sous dérogation), rouge (non conforme)                                    |
+| Conformité physico-chimique | Idem, pour les paramètres chimiques (nitrates, pesticides, métaux…)                                                             |
+| Conclusion sanitaire        | Le texte de l'ARS pour le dernier prélèvement, par exemple « Eau d'alimentation conforme aux exigences de qualité en vigueur… » |
+| Dernier prélèvement         | La date du dernier prélèvement publié                                                                                           |
+| Nitrates (mg/L)             | La limite de qualité est 50 mg/L                                                                                                |
+| Dureté (°f)                 | En degrés français : moins de 15 °f, eau douce ; plus de 30 °f, eau calcaire                                                    |
+| Chlore (mg/L)               | Le chlore libre, ou le chlore total s'il est le seul mesuré ; « <0,10 » (sous le seuil du laboratoire) est publié à 0           |
+| pH                          | Entre 6,5 et 9 pour une eau conforme                                                                                            |
+
+Chaque conformité vient du **dernier prélèvement qui l'a évaluée** : un contrôle de routine ne
+recherche souvent que les bactéries, sans analyse chimique. Les valeurs chiffrées sont les plus
+récentes des deux dernières années (la dureté n'est mesurée qu'une fois par an, voire moins,
+dans les petites communes). Gladys n'a pas d'unité pour les mg/L ni pour les degrés français :
+ces valeurs sont publiées sans unité, et le nom de la fonctionnalité la donne.
+
+Les paramètres de l'appareil indiquent le distributeur (`DISTRIBUTOR`) et les réseaux de
+distribution du dernier prélèvement (`NETWORKS`).
+
+### Site de baignade
+
+| Fonctionnalité      | Ce qu'elle montre                                                                                                            |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Qualité de l'eau    | Pastille de risque : vert (bon), jaune (moyen), orange (mauvais), rouge (baignade interdite) ; rien hors saison              |
+| Dernier résultat    | En toutes lettres : Bon, Moyen, Mauvais, Baignade interdite, Hors saison, Pas encore de prélèvement, Résultat non communiqué |
+| Dernier prélèvement | La date du dernier résultat publié                                                                                           |
+| Saison de baignade  | « Ouverte jusqu'au 31/08 », « Fermée (saison du 15/06 au 31/08) », « Toute l'année » en outre-mer                            |
+
+Le résultat d'un prélèvement (bon, moyen, mauvais) dépend des bactéries mesurées (E. coli,
+entérocoques). Ce n'est pas le **classement** de fin de saison (excellent, bon, suffisant,
+insuffisant), calculé sur quatre ans, que l'intégration ne lit pas.
+
+## Widget
+
+Le widget **Qualité de l'eau** montre, sans réglage, une ligne par commune (conforme ou non, et
+sa dureté) et par site de baignade (dernier résultat et sa date), en couleur, la dureté de votre
+commune en grand, et un titre rouge quand l'eau du robinet est non conforme ou qu'une baignade
+est déconseillée. En choisissant un appareil dans ses réglages, il montre son détail : les
+nitrates, la dureté, le chlore et le pH en direct et la conclusion sanitaire pour une commune ;
+le résultat, la date et la saison, avec un lien vers la fiche officielle, pour un site.
+
+## Déclencheurs de scène
+
+- **Eau du robinet non conforme** : un nouveau prélèvement d'une commune suivie dépasse une
+  limite de qualité. Filtre : la commune. Variables : nom de la commune, date du prélèvement,
+  conclusion sanitaire, conformités bactériologique et physico-chimique (`compliant`,
+  `derogation`, `non_compliant`, `not_measured`). Il ne se déclenche qu'une fois par prélèvement,
+  jamais à la première lecture, ni pour un prélèvement de plus de 90 jours.
+- **Baignade déconseillée ou interdite** : un site suivi passe à un résultat mauvais ou à une
+  interdiction de baignade. Filtres : le site, le nouvel état (`poor`, `prohibited`). Variables :
+  nom du site, état, état en toutes lettres, date du dernier prélèvement.
+
+Pour réagir au retour à la normale, utilisez le déclencheur natif de Gladys « l'état d'un
+appareil change » sur la pastille de l'appareil.
+
+## Exemples de scènes
+
+- **Alerte sur l'eau du robinet** : déclencheur « Eau du robinet non conforme », action « Envoyer
+  un message » qui reprend les variables du déclencheur : « Eau du robinet non conforme à
+  _nom de la commune_ (prélèvement du _date_) : _conclusion sanitaire_ ».
+- **Avant d'aller à la plage** : chaque samedi à 9 h, si la pastille « Qualité de l'eau » du lac
+  vaut moins de 2, envoyer « Baignade possible au lac ce matin ».
+- **Baignade interdite** : déclencheur « Baignade déconseillée ou interdite », état « interdite »,
+  action « Envoyer un message » à toute la famille.
+- **Adoucisseur** : un graphique de la dureté sur un an, pour régler l'adoucisseur ou le
+  lave-vaisselle.
 
 ## Dépannage
 
-L'intégration journalise tout ce qu'elle fait : consultez les logs de
-l'intégration depuis l'interface Gladys (ou `docker logs` sur l'hôte) avec
-`LOG_LEVEL=debug` pour le détail complet.
+- **Aucun appareil dans l'onglet Découverte** : l'écran de configuration dit pourquoi (maison
+  sans position, code INSEE inconnu…). Donnez une position à votre maison ou tapez un code INSEE.
+- **« Aucun prélèvement publié depuis un an »** : vérifiez que vous avez tapé le code INSEE et
+  non le code postal. Pour Paris, Lyon et Marseille, essayez le code de la commune entière (75056,
+  69123, 13055) puis celui de l'arrondissement.
+- **Le dernier prélèvement date d'il y a plusieurs semaines** : c'est normal, les résultats sont
+  publiés une fois par mois environ.
+- **Un site de baignade reste « Hors saison » ou « Pas encore de prélèvement »** : la saison n'a
+  pas commencé, ou le premier prélèvement n'est pas encore publié.
+- **« Hub'Eau ne répond pas » ou « baignades.sante.gouv.fr ne répond pas »** : le service est
+  indisponible ; l'intégration réessaie toutes les heures et garde les dernières valeurs.
+- Pour plus de détails, passez `LOG_LEVEL=debug` : chaque lecture est alors écrite dans les
+  journaux de l'intégration (jamais la position de votre maison).
+
+## Limites
+
+- **À l'échelle de la commune** : dans une grande ville desservie par plusieurs réseaux, le
+  dernier prélèvement peut venir d'un autre quartier que le vôtre (le paramètre `NETWORKS` le
+  dit).
+- Les résultats arrivent avec retard : quelques jours à quelques semaines pour l'eau du robinet.
+  Ce n'est pas une alerte en temps réel.
+- La baignade se lit sur les pages du site baignades.sante.gouv.fr, qui n'a pas d'API publique
+  documentée : un changement de ces pages peut casser la lecture jusqu'à une mise à jour de
+  l'intégration. Le classement de fin de saison n'est pas lu.
+- « Autour de ma maison » retient les communes dont le **centre** est dans le rayon, d'après
+  geo.api.gouv.fr.
+- 5 communes et 10 sites de baignade au plus.
+- Rythme et quotas : aucun quota n'est publié par Hub'Eau ni par baignades.sante.gouv.fr ;
+  l'intégration fait cinq ou six petites requêtes Hub'Eau par commune et par jour, une requête par site de
+  baignade et par jour, et redemande la liste des sites et la commune de la maison une fois par
+  semaine. geo.api.gouv.fr limite à 50 requêtes par seconde.
+
+## Sources et licence
+
+- Eau du robinet : [Hub'Eau – Qualité de l'eau potable](https://hubeau.eaufrance.fr/page/api-qualite-eau-potable),
+  résultats du contrôle sanitaire du ministère de la Santé, Licence Ouverte Etalab 2.0.
+- Baignade : [baignades.sante.gouv.fr](https://baignades.sante.gouv.fr), ministère de la Santé
+  et ARS.
+- Communes : [API Découpage administratif](https://geo.api.gouv.fr), Licence Ouverte Etalab 2.0.
+- La position de votre maison n'est envoyée qu'à geo.api.gouv.fr, arrondie à environ 100 m, et
+  n'est ni enregistrée ni écrite dans les journaux.
+- Intégration non affiliée à l'OFB / eaufrance, au BRGM ni au ministère de la Santé. Code sous
+  licence Apache 2.0.

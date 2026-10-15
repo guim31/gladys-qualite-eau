@@ -30,6 +30,17 @@ Gladys before reporting a problem.
 
 In scope: the code of this repository and the Docker image it publishes.
 
+What the integration handles:
+
+- **No secret**: the services it reads (Hub'Eau, baignades.sante.gouv.fr, geo.api.gouv.fr) are
+  public and keyless; the configuration holds a house, INSEE codes and bathing site codes.
+- **The location of your house** (declared `location: true`): sent only to geo.api.gouv.fr,
+  rounded to about 100 m, to find the commune and the communes around it. It is never written to
+  `/data` nor to the logs.
+- **`/data/qualite-eau.json`**: the last results read, the names of the communes and sites, the
+  selector of the house and the codes of the communes around it. Deleting it is harmless.
+- **Network**: outbound HTTPS only, to the three services above; nothing listens.
+
 Out of scope: Gladys Assistant itself (see its
 [security policy](https://github.com/GladysAssistant/Gladys/security/policy)),
-and the third-party services and devices the integration talks to.
+and the third-party services the integration reads.

@@ -16,12 +16,13 @@ its only runtime dependency. It started from the official JavaScript template.
 ```bash
 npm install
 npm test                                  # node --test, the built-in runner
-node --test test/devices.test.js          # one file
-node --test --test-name-pattern "plug"    # tests whose name matches
+node --test test/monitor.test.js          # one file
+node --test --test-name-pattern "bathing" # tests whose name matches
+node scripts/probe.mjs 45234 --site 030002007  # live services, read-only (needs the network)
 npm run lint                              # ESLint
 npm run format:check                      # Prettier, as the CI runs it
 npm run format                            # Prettier, fix in place
-npx github:GladysAssistant/integration-store .   # store admission checks
+npx -y github:GladysAssistant/integration-store --skip-image-check .   # store admission checks
 ```
 
 The CI (`.github/workflows/ci.yml`) runs `format:check`, `lint` and `test` on
@@ -32,15 +33,22 @@ pushing.
 
 ```
 index.js                          SDK wiring only: handlers registered before connect()
-src/devices/index.js              registry of the device blueprints + dispatch helpers
-src/devices/<type>.js             one device type per file (buildDevice, onPoll, onSetValue...)
-src/scenes.js                     scene action handlers (manifest `scene_actions`)
-src/widgets.js                    dashboard widget handlers (manifest `widgets`)
+src/app.js                        registers every SDK handler on the monitor (index.js and tests)
+src/monitor.js                    what is followed, hourly tick / daily reading, states, triggers
+src/hubeau.js                     Hub'Eau qualite_eau_potable client: samples, conformity, parameters
+src/baignades.js                  baignades.sante.gouv.fr: siteList.do (JSON), consultSite.do (HTML parser)
+src/geo.js                        geo.api.gouv.fr: commune of the house, communes around it
+src/devices.js                    the "Tap water" and bathing site devices (external ids, features)
+src/widgets.js                    the `water_quality` dashboard widget
+src/search.js                     the `find_bathing_sites` configuration action
+src/messages.js                   texts sent from the container, in en/fr/de/es
 src/config.js                     DEFAULT_CONFIG (mirrors the manifest defaults) + normalization
-src/weather.js                    example driver (Open-Meteo)
+src/http.js, src/store.js         GET with timeout and charset; atomic JSON under /data
+scripts/probe.mjs                 read-only probe of the live services (for a machine with network)
 gladys-assistant-integration.json manifest: name, config_schema, actions, image...
-docs/en.md, docs/fr.md            user documentation, re-hosted by Gladys (mandatory)
+docs/{en,fr,de,es}.md             user documentation, re-hosted by Gladys (en and fr mandatory)
 test/                             node --test, against the SDK's fake Gladys (integration-sdk/testing)
+test/helpers/world.js             fake Gladys + fake Hub'Eau, geo.api, baignades on the fixtures
 .github/scripts/release.mjs       release helpers (manifest bump, changelog), tested in test/
 ```
 
@@ -70,8 +78,9 @@ test/                             node --test, against the SDK's fake Gladys (in
   `type: "provider"`: 5.1.0). `test/manifest.test.js` ties the manifest to the
   code (defaults, action, scene and widget handlers): change both sides
   together.
-- **User-facing text** is bilingual (English and French): action messages,
-  manifest texts, and `docs/en.md` / `docs/fr.md`, kept in sync.
+- **User-facing text** exists in English, French, German and Spanish: action
+  messages, manifest texts, feature names, widget texts and `docs/{en,fr,de,es}.md`,
+  kept in sync (`test/i18n.test.js`).
 - **Style.** Prettier formats, ESLint catches mistakes. Comments explain why,
   in English. Tests never touch the network.
 
@@ -233,3 +242,35 @@ long, et sur un « Sie »/« Ihr… » de politesse en allemand. Le store exige 
 - Docs `en`, `fr`, `de`, `es` avec les mêmes sections.
 - Chauffe, ouverture, sécurité : ne rien rendre pilotable « comme un thermostat » ou par un assistant
   vocal quand une erreur serait dangereuse (leçon d'OctoPrint).
+
+## Propre à cette intégration (Qualité de l'eau, 15/10/2026)
+
+- **Hub'Eau n'a pas d'API baignade** (ni dans la liste des API, ni dans le paquet R `hubeau`
+  d'INRAE qui les recense toutes) : la baignade vient de `baignades.sante.gouv.fr`, lu comme le lit
+  Recosante, le service du ministère de la Santé (`SocialGouv/recosante`, Apache-2.0) :
+  `siteList.do?idCarte=fra|gua|mar|guy|reu|may&insee_com=…&code_dept=…&f=json` →
+  `{ sites: [{ isite, nom }] }`, code d'un site = département sur 3 caractères + `isite`
+  (076002097), puis la page HTML `consultSite.do?dptddass=…&site=…&annee=…`. Le parseur cherche
+  les libellés dans le texte des cellules (accents et casse ignorés), ne plante jamais, et prend le
+  dernier prélèvement **qui a un résultat** (une ligne « Non renseigné » attend son analyse). Une
+  interdiction n'est retenue que si elle couvre la date du jour. Outre-mer : pas de saison.
+- **Hub'Eau qualité de l'eau potable** (v1) : une ligne par paramètre d'un prélèvement
+  (`code_prelevement`), les conclusions répétées sur chaque ligne. Conformité `C`, `N`, `D`
+  (dérogation), `S` (sans objet : groupe non mesuré dans ce prélèvement) ; `limites` = santé,
+  `references` = indicateurs sans risque sanitaire. Chaque conformité publiée vient du dernier
+  prélèvement qui l'a évaluée. Paramètres par code SISE (`code_parametre_se` : NO3, TH, PH, CL2LIB,
+  CL2TOT), une petite requête par code : le code Sandre de la dureté diffère selon les sources
+  (1345 ou 7972), et rien ne prouve que le filtre accepte une liste. `resultat_alphanumerique` « <0,10 » est publié à 0.
+- **Couples** : mg/L et °f n'existent pas dans Gladys → nitrates, dureté et chlore en
+  `unknown/unknown` sans unité, l'unité dans le nom ; trois du même type, donc le tableau de bord
+  affiche leurs noms. Conformités en `risk/integer` (0 vert, 1 jaune dérogation, 3 rouge) ; site de
+  baignade 0 bon, 1 moyen, 2 mauvais, 3 interdite, rien hors saison.
+- **Rythme** : minuteur horaire, lecture d'une commune ou d'un site au plus une fois par jour (une
+  heure après un échec), heartbeat 12 h pour des valeurs mensuelles. geo.api et listes de sites :
+  une fois par semaine.
+- **La session de code n'atteint aucun des trois services** (ni data.gouv.fr ni la Wayback
+  Machine) : une seule ligne Hub'Eau réelle (notebook public, Orléans), le reste reconstruit et
+  marqué dans `test/fixtures/README.md`. `scripts/probe.mjs` à lancer depuis une machine qui a le
+  réseau ; `--raw <dossier>` garde les réponses pour remplacer les fixtures.
+- La position de la maison part seulement vers geo.api.gouv.fr, arrondie à 3 décimales, jamais
+  dans `/data` ni dans les journaux.

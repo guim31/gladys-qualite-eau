@@ -1,177 +1,579 @@
 {
   "manifest_version": 1,
   "type": "device",
-  "name": "Demo Devices Template",
+  "name": "Qualité de l'eau",
   "description": {
-    "en": "Starter template showing sensors, a switch, a dimmable light and a smart plug.",
-    "fr": "Template de démarrage : capteurs, interrupteur, lampe variable et prise connectée."
+    "en": "Tap water quality of your French commune and nearby bathing sites, from Hub'Eau and the Ministry.",
+    "fr": "Qualité de l'eau du robinet de votre commune et des baignades proches, par Hub'Eau et le ministère.",
+    "de": "Leitungswasserqualität deiner Gemeinde und nahe Badestellen in Frankreich (Hub'Eau, Ministerium).",
+    "es": "Calidad del agua del grifo de su municipio y zonas de baño cercanas en Francia (Hub'Eau)."
   },
   "version": "1.0.0",
-  "docker_image": "ghcr.io/gladysassistant/integration-template-js:1.0.0",
-  "gladys_version": ">=5.1.0",
-  "cover_image": "https://raw.githubusercontent.com/GladysAssistant/integration-template-js/master/cover.png",
-  "categories": ["lighting", "security", "environment"],
-  "transports": ["local", "cloud"],
+  "docker_image": "ghcr.io/guim31/gladys-qualite-eau:1.0.0",
+  "gladys_version": ">=5.2.0",
+  "cover_image": "https://raw.githubusercontent.com/guim31/gladys-qualite-eau/main/cover.png",
+  "categories": ["environment"],
+  "transports": ["cloud"],
+  "location": true,
   "config_schema": [
     {
       "key": "intro",
       "type": "section",
-      "label": { "en": "Getting started", "fr": "Pour commencer" },
+      "label": {
+        "en": "Your tap water and bathing sites",
+        "fr": "Votre eau du robinet et vos baignades",
+        "de": "Dein Leitungswasser und deine Badestellen",
+        "es": "Su agua del grifo y sus zonas de baño"
+      },
       "description": {
-        "en": "The demo weather station reads real data from the free Open-Meteo API: pick the coordinates to observe. No account, no API key.",
-        "fr": "La station météo de démonstration lit de vraies données via l'API gratuite Open-Meteo : choisissez les coordonnées à observer. Pas de compte, pas de clé d'API."
+        "en": "The tap water of the commune of your house (or of the INSEE codes you type), and the bathing sites of that commune or around your house. \"Find bathing sites\" below lists them. Save, then create the devices in the Discover tab.",
+        "fr": "L'eau du robinet de la commune de votre maison (ou des codes INSEE que vous tapez), et les sites de baignade de cette commune ou autour de votre maison. « Chercher des sites de baignade » ci-dessous les liste. Enregistrez, puis créez les appareils dans l'onglet Découverte.",
+        "de": "Das Leitungswasser der Gemeinde deines Hauses (oder der INSEE-Codes, die du eingibst) und die Badestellen dieser Gemeinde oder rund um dein Haus. „Badestellen suchen“ unten listet sie auf. Speichere und lege dann die Geräte im Tab „Entdecken“ an.",
+        "es": "El agua del grifo del municipio de su casa (o de los códigos INSEE que escriba) y las zonas de baño de ese municipio o alrededor de su casa. «Buscar zonas de baño» más abajo las enumera. Guarde y cree los dispositivos en la pestaña Descubrir."
       },
       "links": [
         {
-          "url": "https://open-meteo.com/en/docs",
-          "label": { "en": "Open-Meteo documentation", "fr": "Documentation Open-Meteo" }
+          "url": "https://github.com/guim31/gladys-qualite-eau/blob/main/docs/fr.md",
+          "label": {
+            "en": "Setup guide",
+            "fr": "Guide d'installation",
+            "de": "Installationsanleitung",
+            "es": "Guía de instalación"
+          }
         }
       ]
     },
     {
-      "key": "latitude",
-      "type": "number",
-      "label": { "en": "Latitude", "fr": "Latitude" },
-      "description": {
-        "en": "Latitude used for the demo weather sensor.",
-        "fr": "Latitude utilisée par le capteur météo de démonstration."
+      "key": "about",
+      "type": "section",
+      "label": {
+        "en": "Sources and limits",
+        "fr": "Sources et limites",
+        "de": "Quellen und Grenzen",
+        "es": "Fuentes y límites"
       },
-      "placeholder": { "en": "e.g. 48.8566", "fr": "ex. 48.8566" },
-      "required": true,
-      "default": 48.8566,
-      "min": -90,
-      "max": 90
-    },
-    {
-      "key": "longitude",
-      "type": "number",
-      "label": { "en": "Longitude", "fr": "Longitude" },
       "description": {
-        "en": "Longitude used for the demo weather sensor.",
-        "fr": "Longitude utilisée par le capteur météo de démonstration."
+        "en": "Results of the sanitary control published by the Ministry of Health (Hub'Eau, baignades.sante.gouv.fr), read once a day without an account. Information, not a health alert: the notices of your town hall and of the ARS prevail. Not affiliated with OFB / eaufrance.",
+        "fr": "Résultats du contrôle sanitaire publiés par le ministère de la Santé (Hub'Eau, baignades.sante.gouv.fr), lus une fois par jour sans compte. Une information, pas une alerte sanitaire : les avis de votre mairie et de l'ARS priment. Non affiliée à l'OFB / eaufrance.",
+        "de": "Ergebnisse der Gesundheitskontrolle, veröffentlicht vom Gesundheitsministerium (Hub'Eau, baignades.sante.gouv.fr), einmal am Tag ohne Konto gelesen. Eine Information, kein Gesundheitsalarm: Die Hinweise deines Rathauses und der ARS haben Vorrang. Nicht mit OFB / eaufrance verbunden.",
+        "es": "Resultados del control sanitario publicados por el Ministerio de Sanidad (Hub'Eau, baignades.sante.gouv.fr), leídos una vez al día sin cuenta. Una información, no una alerta sanitaria: prevalecen los avisos de su ayuntamiento y de la ARS. Sin afiliación con OFB / eaufrance."
       },
-      "placeholder": { "en": "e.g. 2.3522", "fr": "ex. 2.3522" },
-      "required": true,
-      "default": 2.3522,
-      "min": -180,
-      "max": 180
-    },
-    {
-      "key": "unit",
-      "type": "select",
-      "label": { "en": "Temperature unit", "fr": "Unité de température" },
-      "required": false,
-      "default": "celsius",
-      "options": [
-        { "value": "celsius", "label": { "en": "Celsius", "fr": "Celsius" } },
-        { "value": "fahrenheit", "label": { "en": "Fahrenheit", "fr": "Fahrenheit" } }
+      "links": [
+        {
+          "url": "https://hubeau.eaufrance.fr/page/api-qualite-eau-potable",
+          "label": {
+            "en": "Hub'Eau drinking water",
+            "fr": "Hub'Eau eau potable",
+            "de": "Hub'Eau Trinkwasser",
+            "es": "Hub'Eau agua potable"
+          }
+        },
+        {
+          "url": "https://baignades.sante.gouv.fr",
+          "label": {
+            "en": "Bathing water quality",
+            "fr": "Qualité des eaux de baignade",
+            "de": "Badegewässerqualität",
+            "es": "Calidad de las aguas de baño"
+          }
+        }
       ]
     },
     {
-      "key": "poll_frequency",
-      "type": "number",
-      "label": { "en": "Refresh interval (s)", "fr": "Intervalle de rafraîchissement (s)" },
+      "key": "house",
+      "type": "select",
+      "source": "houses",
+      "label": {
+        "en": "House",
+        "fr": "Maison",
+        "de": "Haus",
+        "es": "Casa"
+      },
       "description": {
-        "en": "How often sensors are polled, in seconds (one minute minimum).",
-        "fr": "Fréquence d'interrogation des capteurs, en secondes (une minute minimum)."
+        "en": "Its location gives the commune of the tap water and the bathing sites around it. Empty: the first house of Gladys that has a location.",
+        "fr": "Sa position donne la commune de l'eau du robinet et les sites de baignade autour. Vide : la première maison de Gladys qui a une position.",
+        "de": "Sein Standort ergibt die Gemeinde des Leitungswassers und die Badestellen in der Nähe. Leer: das erste Haus in Gladys mit einem Standort.",
+        "es": "Su ubicación da el municipio del agua del grifo y las zonas de baño cercanas. Vacío: la primera casa de Gladys que tiene ubicación."
+      },
+      "required": false
+    },
+    {
+      "key": "communes",
+      "type": "string",
+      "label": {
+        "en": "Communes (INSEE codes)",
+        "fr": "Communes (codes INSEE)",
+        "de": "Gemeinden (INSEE-Codes)",
+        "es": "Municipios (códigos INSEE)"
+      },
+      "description": {
+        "en": "Instead of the commune of the house: up to 5 INSEE codes (not postcodes), e.g. 45234 for Orléans, 75056 for Paris.",
+        "fr": "À la place de la commune de la maison : jusqu'à 5 codes INSEE (pas les codes postaux), par exemple 45234 pour Orléans, 75056 pour Paris.",
+        "de": "Statt der Gemeinde des Hauses: bis zu 5 INSEE-Codes (keine Postleitzahlen), z. B. 45234 für Orléans, 75056 für Paris.",
+        "es": "En lugar del municipio de la casa: hasta 5 códigos INSEE (no códigos postales), p. ej. 45234 para Orléans, 75056 para París."
+      },
+      "placeholder": {
+        "en": "e.g. 45234",
+        "fr": "ex. 45234",
+        "de": "z. B. 45234",
+        "es": "p. ej. 45234"
       },
       "required": false,
-      "default": 300,
-      "min": 60,
-      "max": 3600
+      "default": ""
+    },
+    {
+      "key": "bathing_around",
+      "type": "select",
+      "label": {
+        "en": "Bathing sites followed",
+        "fr": "Sites de baignade suivis",
+        "de": "Verfolgte Badestellen",
+        "es": "Zonas de baño seguidas"
+      },
+      "description": {
+        "en": "Those of the communes above, or those within a distance of your house (10 sites at most).",
+        "fr": "Ceux des communes ci-dessus, ou ceux à une distance de votre maison (10 sites au plus).",
+        "de": "Die der Gemeinden oben oder die in einer Entfernung von deinem Haus (höchstens 10 Stellen).",
+        "es": "Las de los municipios anteriores, o las que están a una distancia de su casa (10 zonas como máximo)."
+      },
+      "required": false,
+      "default": "commune",
+      "options": [
+        {
+          "value": "0",
+          "label": {
+            "en": "Only the codes below",
+            "fr": "Seulement les codes ci-dessous",
+            "de": "Nur die Codes unten",
+            "es": "Solo los códigos de abajo"
+          }
+        },
+        {
+          "value": "commune",
+          "label": {
+            "en": "Those of my communes",
+            "fr": "Ceux de mes communes",
+            "de": "Die meiner Gemeinden",
+            "es": "Las de mis municipios"
+          }
+        },
+        {
+          "value": "5",
+          "label": {
+            "en": "Within 5 km of my house",
+            "fr": "À 5 km de ma maison",
+            "de": "Im Umkreis von 5 km um mein Haus",
+            "es": "A 5 km de mi casa"
+          }
+        },
+        {
+          "value": "10",
+          "label": {
+            "en": "Within 10 km of my house",
+            "fr": "À 10 km de ma maison",
+            "de": "Im Umkreis von 10 km um mein Haus",
+            "es": "A 10 km de mi casa"
+          }
+        },
+        {
+          "value": "20",
+          "label": {
+            "en": "Within 20 km of my house",
+            "fr": "À 20 km de ma maison",
+            "de": "Im Umkreis von 20 km um mein Haus",
+            "es": "A 20 km de mi casa"
+          }
+        }
+      ]
+    },
+    {
+      "key": "bathing_sites",
+      "type": "string",
+      "label": {
+        "en": "Bathing sites",
+        "fr": "Sites de baignade",
+        "de": "Badestellen",
+        "es": "Zonas de baño"
+      },
+      "description": {
+        "en": "Codes given by \"Find bathing sites\", or the addresses of their pages on baignades.sante.gouv.fr, separated by commas.",
+        "fr": "Codes donnés par « Chercher des sites de baignade », ou adresses de leurs pages sur baignades.sante.gouv.fr, séparés par des virgules.",
+        "de": "Codes aus „Badestellen suchen“ oder die Adressen ihrer Seiten auf baignades.sante.gouv.fr, durch Kommas getrennt.",
+        "es": "Códigos dados por «Buscar zonas de baño», o las direcciones de sus páginas en baignades.sante.gouv.fr, separados por comas."
+      },
+      "placeholder": {
+        "en": "e.g. 030002007",
+        "fr": "ex. 030002007",
+        "de": "z. B. 030002007",
+        "es": "p. ej. 030002007"
+      },
+      "required": false,
+      "default": ""
+    },
+    {
+      "key": "language",
+      "type": "select",
+      "label": {
+        "en": "Language of the names and texts",
+        "fr": "Langue des noms et des textes",
+        "de": "Sprache der Namen und Texte",
+        "es": "Idioma de los nombres y textos"
+      },
+      "description": {
+        "en": "Names of the new devices and features (Tap water, Hardness…) and language of their texts (results, season).",
+        "fr": "Noms des nouveaux appareils et fonctionnalités (Eau du robinet, Dureté…) et langue de leurs textes (résultats, saison).",
+        "de": "Namen der neuen Geräte und Funktionen (Leitungswasser, Wasserhärte…) und Sprache ihrer Texte (Ergebnisse, Saison).",
+        "es": "Nombres de los nuevos dispositivos y funciones (Agua del grifo, Dureza…) e idioma de sus textos (resultados, temporada)."
+      },
+      "required": false,
+      "default": "fr",
+      "options": [
+        {
+          "value": "en",
+          "label": {
+            "en": "English",
+            "fr": "Anglais",
+            "de": "Englisch",
+            "es": "Inglés"
+          }
+        },
+        {
+          "value": "fr",
+          "label": {
+            "en": "French",
+            "fr": "Français",
+            "de": "Französisch",
+            "es": "Francés"
+          }
+        },
+        {
+          "value": "de",
+          "label": {
+            "en": "German",
+            "fr": "Allemand",
+            "de": "Deutsch",
+            "es": "Alemán"
+          }
+        },
+        {
+          "value": "es",
+          "label": {
+            "en": "Spanish",
+            "fr": "Espagnol",
+            "de": "Spanisch",
+            "es": "Español"
+          }
+        }
+      ]
     }
   ],
   "actions": [
     {
-      "key": "test_weather",
-      "label": { "en": "Test the weather provider", "fr": "Tester le fournisseur météo" },
-      "timeout_seconds": 30
-    },
-    {
-      "key": "identify",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
+      "key": "find_bathing_sites",
+      "label": {
+        "en": "Find bathing sites",
+        "fr": "Chercher des sites de baignade",
+        "de": "Badestellen suchen",
+        "es": "Buscar zonas de baño"
+      },
+      "description": {
+        "en": "Lists the bathing sites of a commune, or of the communes around your house, with the code to copy into \"Bathing sites\".",
+        "fr": "Liste les sites de baignade d'une commune, ou des communes autour de votre maison, avec le code à copier dans « Sites de baignade ».",
+        "de": "Listet die Badestellen einer Gemeinde oder der Gemeinden rund um dein Haus auf, mit dem Code zum Kopieren in „Badestellen“.",
+        "es": "Enumera las zonas de baño de un municipio, o de los municipios alrededor de su casa, con el código que hay que copiar en «Zonas de baño»."
+      },
+      "timeout_seconds": 60,
       "fields": [
         {
-          "key": "device",
+          "key": "commune",
+          "type": "string",
+          "label": {
+            "en": "Commune (INSEE code)",
+            "fr": "Commune (code INSEE)",
+            "de": "Gemeinde (INSEE-Code)",
+            "es": "Municipio (código INSEE)"
+          },
+          "description": {
+            "en": "Empty: around your house.",
+            "fr": "Vide : autour de votre maison.",
+            "de": "Leer: rund um dein Haus.",
+            "es": "Vacío: alrededor de su casa."
+          },
+          "placeholder": {
+            "en": "e.g. 29019",
+            "fr": "ex. 29019",
+            "de": "z. B. 29019",
+            "es": "p. ej. 29019"
+          },
+          "required": false
+        },
+        {
+          "key": "radius",
           "type": "select",
-          "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
-          "required": true
+          "label": {
+            "en": "Distance around the house",
+            "fr": "Distance autour de la maison",
+            "de": "Entfernung um das Haus",
+            "es": "Distancia alrededor de la casa"
+          },
+          "description": {
+            "en": "10 km when empty.",
+            "fr": "10 km si vide.",
+            "de": "10 km, wenn leer.",
+            "es": "10 km si está vacío."
+          },
+          "required": false,
+          "options": [
+            {
+              "value": "5",
+              "label": {
+                "en": "5 km",
+                "fr": "5 km",
+                "de": "5 km",
+                "es": "5 km"
+              }
+            },
+            {
+              "value": "10",
+              "label": {
+                "en": "10 km",
+                "fr": "10 km",
+                "de": "10 km",
+                "es": "10 km"
+              }
+            },
+            {
+              "value": "20",
+              "label": {
+                "en": "20 km",
+                "fr": "20 km",
+                "de": "20 km",
+                "es": "20 km"
+              }
+            }
+          ]
         }
       ]
     }
   ],
   "scene_triggers": [
     {
-      "key": "motion_detected",
-      "label": { "en": "Motion detected", "fr": "Mouvement détecté" },
+      "key": "tap_water_non_compliant",
+      "label": {
+        "en": "Tap water non-compliant",
+        "fr": "Eau du robinet non conforme",
+        "de": "Leitungswasser nicht konform",
+        "es": "Agua del grifo no conforme"
+      },
       "description": {
-        "en": "A demo motion sensor saw a person or an animal move.",
-        "fr": "Un détecteur de démonstration a vu bouger une personne ou un animal."
+        "en": "A new sample of a followed commune exceeds a quality limit (bacteriological or physico-chemical).",
+        "fr": "Un nouveau prélèvement d'une commune suivie dépasse une limite de qualité (bactériologique ou physico-chimique).",
+        "de": "Eine neue Probe einer verfolgten Gemeinde überschreitet einen Qualitätsgrenzwert (bakteriologisch oder physikalisch-chemisch).",
+        "es": "Una nueva muestra de un municipio seguido supera un límite de calidad (bacteriológico o fisicoquímico)."
       },
       "fields": [
         {
-          "key": "device",
+          "key": "commune",
           "type": "select",
           "source": "devices",
-          "label": { "en": "Sensor", "fr": "Détecteur" }
+          "label": {
+            "en": "Commune",
+            "fr": "Commune",
+            "de": "Gemeinde",
+            "es": "Municipio"
+          }
+        }
+      ],
+      "variables": [
+        {
+          "key": "commune_name",
+          "type": "string",
+          "label": {
+            "en": "Commune",
+            "fr": "Commune",
+            "de": "Gemeinde",
+            "es": "Municipio"
+          }
         },
         {
-          "key": "target",
+          "key": "sample_date",
+          "type": "string",
+          "label": {
+            "en": "Day of the sample",
+            "fr": "Date du prélèvement",
+            "de": "Datum der Probe",
+            "es": "Fecha de la muestra"
+          }
+        },
+        {
+          "key": "conclusion",
+          "type": "string",
+          "label": {
+            "en": "Health conclusion",
+            "fr": "Conclusion sanitaire",
+            "de": "Gesundheitliches Fazit",
+            "es": "Conclusión sanitaria"
+          }
+        },
+        {
+          "key": "bacteriological",
+          "type": "string",
+          "label": {
+            "en": "Bacteriological (compliant, non_compliant…)",
+            "fr": "Bactériologique (compliant, non_compliant…)",
+            "de": "Bakteriologisch (compliant, non_compliant…)",
+            "es": "Bacteriológica (compliant, non_compliant…)"
+          }
+        },
+        {
+          "key": "physico_chemical",
+          "type": "string",
+          "label": {
+            "en": "Physico-chemical (compliant, non_compliant…)",
+            "fr": "Physico-chimique (compliant, non_compliant…)",
+            "de": "Physikalisch-chemisch (compliant, non_compliant…)",
+            "es": "Fisicoquímica (compliant, non_compliant…)"
+          }
+        }
+      ]
+    },
+    {
+      "key": "bathing_unsafe",
+      "label": {
+        "en": "Bathing not advised or prohibited",
+        "fr": "Baignade déconseillée ou interdite",
+        "de": "Baden nicht empfohlen oder verboten",
+        "es": "Baño desaconsejado o prohibido"
+      },
+      "description": {
+        "en": "A followed bathing site gets a poor result or a bathing ban.",
+        "fr": "Un site de baignade suivi reçoit un mauvais résultat ou une interdiction de baignade.",
+        "de": "Eine verfolgte Badestelle erhält ein schlechtes Ergebnis oder ein Badeverbot.",
+        "es": "Una zona de baño seguida recibe un mal resultado o una prohibición de baño."
+      },
+      "fields": [
+        {
+          "key": "site",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Bathing site",
+            "fr": "Site de baignade",
+            "de": "Badestelle",
+            "es": "Zona de baño"
+          }
+        },
+        {
+          "key": "status",
           "type": "multi_select",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" },
+          "label": {
+            "en": "New status",
+            "fr": "Nouvel état",
+            "de": "Neuer Zustand",
+            "es": "Nuevo estado"
+          },
           "options": [
-            { "value": "person", "label": { "en": "Person", "fr": "Personne" } },
-            { "value": "animal", "label": { "en": "Animal", "fr": "Animal" } }
+            {
+              "value": "poor",
+              "label": {
+                "en": "Poor result",
+                "fr": "Mauvais résultat",
+                "de": "Schlechtes Ergebnis",
+                "es": "Mal resultado"
+              }
+            },
+            {
+              "value": "prohibited",
+              "label": {
+                "en": "Bathing prohibited",
+                "fr": "Baignade interdite",
+                "de": "Baden verboten",
+                "es": "Baño prohibido"
+              }
+            }
           ]
         }
       ],
       "variables": [
         {
-          "key": "target",
+          "key": "site_name",
           "type": "string",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" }
-        }
-      ]
-    }
-  ],
-  "scene_actions": [
-    {
-      "key": "identify_device",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
-      "description": {
-        "en": "Make a device signal itself (the demo light blinks).",
-        "fr": "Fait se signaler un appareil (la lampe de démonstration clignote)."
-      },
-      "timeout_seconds": 15,
-      "fields": [
+          "label": {
+            "en": "Site name",
+            "fr": "Nom du site",
+            "de": "Name der Badestelle",
+            "es": "Nombre de la zona"
+          }
+        },
         {
-          "key": "device",
-          "type": "select",
-          "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
-          "required": true
-        }
-      ],
-      "outputs": [
+          "key": "status",
+          "type": "string",
+          "label": {
+            "en": "Status (poor, prohibited)",
+            "fr": "État (poor, prohibited)",
+            "de": "Zustand (poor, prohibited)",
+            "es": "Estado (poor, prohibited)"
+          }
+        },
         {
-          "key": "signalled",
-          "type": "boolean",
-          "label": { "en": "Device signalled", "fr": "Appareil signalé" }
+          "key": "status_name",
+          "type": "string",
+          "label": {
+            "en": "Status, in words",
+            "fr": "État, en toutes lettres",
+            "de": "Zustand, ausgeschrieben",
+            "es": "Estado, en palabras"
+          }
+        },
+        {
+          "key": "sample_date",
+          "type": "string",
+          "label": {
+            "en": "Day of the last sample",
+            "fr": "Date du dernier prélèvement",
+            "de": "Datum der letzten Probe",
+            "es": "Fecha de la última muestra"
+          }
         }
       ]
     }
   ],
   "widgets": [
     {
-      "key": "demo_status",
-      "label": { "en": "Demo status", "fr": "État de la démo" },
-      "description": {
-        "en": "Live temperature and plug power, plug connection and observed location.",
-        "fr": "Température et puissance en direct, connexion de la prise, position observée."
+      "key": "water_quality",
+      "label": {
+        "en": "Water quality",
+        "fr": "Qualité de l'eau",
+        "de": "Wasserqualität",
+        "es": "Calidad del agua"
       },
-      "icon": "activity",
-      "action_timeout_seconds": 15
+      "description": {
+        "en": "Tap water (compliant or not, hardness) and the followed bathing sites.",
+        "fr": "Eau du robinet (conforme ou non, dureté) et sites de baignade suivis.",
+        "de": "Leitungswasser (konform oder nicht, Härte) und die verfolgten Badestellen.",
+        "es": "Agua del grifo (conforme o no, dureza) y zonas de baño seguidas."
+      },
+      "icon": "droplet",
+      "settings": [
+        {
+          "key": "device",
+          "type": "select",
+          "source": "devices",
+          "required": false,
+          "label": {
+            "en": "Device",
+            "fr": "Appareil",
+            "de": "Gerät",
+            "es": "Dispositivo"
+          },
+          "description": {
+            "en": "Leave empty for the overview; pick a commune or a bathing site for its details.",
+            "fr": "Laissez vide pour la vue d'ensemble ; choisissez une commune ou un site de baignade pour son détail.",
+            "de": "Leer lassen für die Übersicht; wähle eine Gemeinde oder eine Badestelle für ihre Details.",
+            "es": "Déjelo vacío para la vista general; elija un municipio o una zona de baño para ver su detalle."
+          }
+        }
+      ]
     }
   ]
 }
