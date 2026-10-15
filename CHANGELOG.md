@@ -10,6 +10,8 @@ the notes of the version's GitHub Release.
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-15
+
 ### Added
 
 - A "Tap water" device per commune, from Hub'Eau: bacteriological and physico-chemical
@@ -25,4 +27,5 @@ the notes of the version's GitHub Release.
 - One reading a day by the integration's own timer, a heartbeat every 12 hours, quiet logs.
 - Texts and documentation in English, French, German and Spanish.
 
-[Unreleased]: https://github.com/guim31/gladys-qualite-eau/commits/main
+[Unreleased]: https://github.com/guim31/gladys-qualite-eau/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/guim31/gladys-qualite-eau/releases/tag/v1.0.1
