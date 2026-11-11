@@ -37,7 +37,7 @@ key.
 
 ## Requirements
 
-- Gladys Assistant **5.2.0** or later (widgets, scene triggers, house selection).
+- Gladys Assistant **5.3.0** or later (catalog countries; 5.2.0 for widgets, scene triggers, house selection).
 - Internet access from Gladys to `hubeau.eaufrance.fr`, `baignades.sante.gouv.fr` and
   `geo.api.gouv.fr`.
 - To use your house: its location in Gladys. The integration declares `location: true`, shown on
