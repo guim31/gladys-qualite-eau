@@ -28,7 +28,7 @@ sanitary control published by the French Ministry of Health. Public data, no acc
 
 ## Requirements
 
-- Gladys Assistant **5.2.0** or later.
+- Gladys Assistant **5.3.0** or later.
 - Internet access from Gladys to `hubeau.eaufrance.fr`, `baignades.sante.gouv.fr` and
   `geo.api.gouv.fr`.
 - To use your house: its **location** set in Gladys (Settings → Houses). The integration asks

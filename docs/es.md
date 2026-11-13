@@ -30,7 +30,7 @@ clave.
 
 ## Requisitos
 
-- Gladys Assistant **5.2.0** o posterior.
+- Gladys Assistant **5.3.0** o posterior.
 - Acceso a Internet desde Gladys hacia `hubeau.eaufrance.fr`, `baignades.sante.gouv.fr` y
   `geo.api.gouv.fr`.
 - Para usar su casa: su **ubicación** indicada en Gladys (Ajustes → Casas). La integración pide

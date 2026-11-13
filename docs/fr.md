@@ -30,7 +30,7 @@ contrôle sanitaire publiés par le ministère de la Santé. Données publiques,
 
 ## Prérequis
 
-- Gladys Assistant **5.2.0** ou plus récent.
+- Gladys Assistant **5.3.0** ou plus récent.
 - Un accès à Internet depuis Gladys vers `hubeau.eaufrance.fr`, `baignades.sante.gouv.fr` et
   `geo.api.gouv.fr`.
 - Pour utiliser votre maison : sa **position** renseignée dans Gladys (Paramètres → Maisons).

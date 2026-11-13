@@ -213,3 +213,8 @@ test('the documentation the configuration links to exists', async () => {
     }
   }
 });
+
+test('the catalog countries: France, which needs Gladys >= 5.3.0', () => {
+  assert.deepEqual(manifest.countries, ['FR']);
+  assert.match(manifest.gladys_version, /^>=\s*5\.3\.0$/, 'countries needs Gladys 5.3.0');
+});

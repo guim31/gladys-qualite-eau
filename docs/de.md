@@ -31,7 +31,7 @@ Ergebnissen der Gesundheitskontrolle, die das französische Gesundheitsministeri
 
 ## Voraussetzungen
 
-- Gladys Assistant **5.2.0** oder neuer.
+- Gladys Assistant **5.3.0** oder neuer.
 - Internetzugang von Gladys zu `hubeau.eaufrance.fr`, `baignades.sante.gouv.fr` und
   `geo.api.gouv.fr`.
 - Um dein Haus zu verwenden: sein **Standort** in Gladys (Einstellungen → Häuser). Die
